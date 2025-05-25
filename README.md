@@ -1,5 +1,3 @@
-# SOP_CodeGroup53
-
 # Sonar and Flow Sensors - Arduino and MATLAB Codes
 
 ## Explanation of Code Files
@@ -14,105 +12,19 @@ The Arduino code serves as the real-time interface with the physical sensors, re
     * From the sonar sensor's distance measurement, it calculates the **water level** within the container by subtracting the measured distance from the container's total height.
 * **Serial Communication:** The calculated values (flow rate, total volume, and water level) are sent to a connected computer via serial communication. The data is formatted as a structured text string, using a pipe (`|`) character as a separator, which facilitates parsing by the MATLAB script. A small delay (100 milliseconds) is included to regulate the data transmission rate.
 
-#### Arduino Code (`arduino_code.ino`)
+### MATLAB Code
 
-```arduino
-// Define pins for the sonar sensor
-const int trigPin = 9;
-const int echoPin = 10;
+The MATLAB code functions as the data acquisition, processing, and visualization hub on the computer.
 
-// Define pin for the flow sensor
-const int flowPin = 8;
-
-// Variables for sonar sensor
-long duration ;
-int distance ;
-int containerHeight = 30; // has to be changed to a measured real - life value
-int waterLevel ;
-
-// Variables for flow sensor
-volatile int pulseCount ;
-float flowRate ;
-unsigned long lastTime ;
-float totalVolume ;
-
-// Constants for flow sensor calibration
-const float calibrationFactor = 7.5;
-const unsigned long reportingInterval = 1000;
-
-void setup () {
-// Initialize serial communication
-Serial . begin (9600);
-
-// Setup sonar sensor pins
-pinMode ( trigPin , OUTPUT );
-pinMode ( echoPin , INPUT );
-
-// Setup flow sensor pin
-pinMode ( flowPin , INPUT );
-attachInterrupt ( digitalPinToInterrupt ( flowPin ) , countPulse , RISING );
-
-// Initialize flow sensor variables
-pulseCount = 0;
-flowRate = 0.0;
-totalVolume = 0.0;
-lastTime = millis ();
-}
-
-void loop () {
-// Measure water level using sonar sensor
-measureWaterLevel ();
-
-// Calculate flow rate and volume
-calculateFlowRate ();
-
-// Print data to serial port
-printData ();
-
-// Delay for a short period
-delay (100);
-}
-
-void measureWaterLevel () {
-// Clear the trigPin by setting it LOW :
-digitalWrite ( trigPin , LOW );
-delayMicroseconds (2);
-// Set the trigPin on HIGH state for 10 micro seconds :
-digitalWrite ( trigPin , HIGH );
-delayMicroseconds (10);
-digitalWrite ( trigPin , LOW );
-// Read the echoPin , return the sound wave travel time in microseconds :
-duration = pulseIn ( echoPin , HIGH );
-// Calculate the distance :
-distance = duration * 0.034 / 2;
-waterLevel = containerHeight - distance ;
-if ( waterLevel < 0) {
-waterLevel = 0;
-}
-}
-
-void countPulse () {
-pulseCount ++;
-}
-
-void calculateFlowRate () {
-unsigned long now = millis ();
-if ( now - lastTime >= reportingInterval ) {
-// Calculate flow rate in liters per minute
-flowRate = ( pulseCount / calibrationFactor ) * (1000.0 / reportingInterval ) * 60;
-// Calculate volume in liters
-totalVolume += ( pulseCount / calibrationFactor );
-
-lastTime = now ;
-pulseCount = 0;
-}
-}
-
-void printData () {
-Serial . print ( flowRate , 2);
-Serial . print (" | ");
-Serial . print ( totalVolume , 2);
-Serial . print (" | ");
-Serial . print ( waterLevel );
-Serial . println ();
-}
+* **Serial Port Setup:** It initiates a serial communication connection with the Arduino, specifying the correct COM port and baud rate (9600 bps). It configures a line feed (`LF`) terminator to identify the end of incoming messages and flushes buffers for a clean communication start.
+* **Data Collection Loop:** The central part of the MATLAB code is a loop that continually reads data from the serial port for a predetermined duration. In each iteration:
+    * It reads a complete line of data from the Arduino.
+    * It employs regular expressions (`regexp`) to parse the incoming text string, extracting numerical values for flow rate, total volume, and water level as transmitted by the Arduino.
+* **Unit Conversion & Storage:** The parsed values undergo unit conversions (e.g., flow rate from liters per minute to cubic meters per second, water level from centimeters to meters) and are subsequently stored in pre-allocated arrays (time, flow\_m3s, volume\_L, waterLevel\_cm).
+* **Real-time Feedback:** It prints the collected data (time, flow, volume, level) to the MATLAB command window, providing real-time monitoring of the experiment.
+* **Data Visualization:** Upon completion of data collection, the MATLAB code generates several plots to visualize the experimental results, including:
+    * Water Level vs. Time
+    * Flow Rate vs. Water Level
+    * Volume vs. Time
+    * Relative Efficiency (Flow / Height Ratio) vs. Time
+* **Data Saving:** Finally, all collected and processed data is compiled into a table and saved as a CSV file named `experiment_data.csv`, ensuring data persistence and availability for subsequent analysis.
